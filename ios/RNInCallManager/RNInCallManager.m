@@ -31,19 +31,15 @@
     NSURL *_bundleRingbackUri;
     NSURL *_bundleBusytoneUri;
 
-    //BOOL isProximitySupported;
-    BOOL _proximityIsNear;
+  
 
-    // --- tags to indicating which observer has added
-    BOOL _isProximityRegistered;
     BOOL _isAudioSessionInterruptionRegistered;
     BOOL _isAudioSessionRouteChangeRegistered;
     BOOL _isAudioSessionMediaServicesWereLostRegistered;
     BOOL _isAudioSessionMediaServicesWereResetRegistered;
     BOOL _isAudioSessionSilenceSecondaryAudioHintRegistered;
 
-    // -- notification observers
-    id _proximityObserver;
+
     id _audioSessionInterruptionObserver;
     id _audioSessionRouteChangeObserver;
     id _audioSessionMediaServicesWereLostObserver;
@@ -84,16 +80,13 @@ RCT_EXPORT_MODULE(InCallManager)
         _bundleRingbackUri = nil;
         _bundleBusytoneUri = nil;
 
-        _proximityIsNear = NO;
 
-        _isProximityRegistered = NO;
         _isAudioSessionInterruptionRegistered = NO;
         _isAudioSessionRouteChangeRegistered = NO;
         _isAudioSessionMediaServicesWereLostRegistered = NO;
         _isAudioSessionMediaServicesWereResetRegistered = NO;
         _isAudioSessionSilenceSecondaryAudioHintRegistered = NO;
 
-        _proximityObserver = nil;
         _audioSessionInterruptionObserver = nil;
         _audioSessionRouteChangeObserver = nil;
         _audioSessionMediaServicesWereLostObserver = nil;
@@ -123,8 +116,7 @@ RCT_EXPORT_MODULE(InCallManager)
 
 - (NSArray<NSString *> *)supportedEvents
 {
-    return @[@"Proximity",
-             @"WiredHeadset"];
+    return @[@"WiredHeadset"];
 }
 
 RCT_EXPORT_METHOD(start:(NSString *)mediaType
@@ -164,9 +156,7 @@ RCT_EXPORT_METHOD(start:(NSString *)mediaType
         [self startRingback:ringbackUriType];
     }
 
-    if ([_media isEqualToString:@"audio"]) {
-        [self startProximitySensor];
-    }
+
     [self setKeepScreenOn:YES];
     _audioSessionInitialized = YES;
     //self.debugAudioSession()
@@ -188,7 +178,6 @@ RCT_EXPORT_METHOD(stop:(NSString *)busytoneUriType)
         NSLog(@"RNInCallManager.stop(): stop InCallManager");
         [self restoreOriginalAudioSetup];
         [self stopBusytone];
-        [self stopProximitySensor];
         [self audioSessionSetActive:NO
                             options:AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation
                          callerMemo:NSStringFromSelector(_cmd)];
@@ -561,25 +550,14 @@ RCT_EXPORT_METHOD(getIsWiredHeadsetPluggedIn:(RCTPromiseResolveBlock)resolve
         // --- force ON, override speaker only, keep audio mode remain.
         overrideAudioPort = AVAudioSessionPortOverrideSpeaker;
         overrideAudioPortString = @".Speaker";
-        if ([_media isEqualToString:@"video"]) {
-            audioMode = AVAudioSessionModeVideoChat;
-            [self stopProximitySensor];
-        }
+
     } else if (_forceSpeakerOn == -1) {
         // --- force off
         overrideAudioPort = AVAudioSessionPortOverrideNone;
         overrideAudioPortString = @".None";
-        if ([_media isEqualToString:@"video"]) {
-            audioMode = AVAudioSessionModeVoiceChat;
-            [self startProximitySensor];
-        }
     } else { // use default behavior
         overrideAudioPort = AVAudioSessionPortOverrideNone;
         overrideAudioPortString = @".None";
-        if ([_media isEqualToString:@"video"]) {
-            audioMode = AVAudioSessionModeVideoChat;
-            [self stopProximitySensor];
-        }
     }
 
     BOOL isCurrentRouteToSpeaker;
@@ -752,55 +730,8 @@ RCT_EXPORT_METHOD(getIsWiredHeadsetPluggedIn:(RCTPromiseResolveBlock)resolve
                    callerMemo:NSStringFromSelector(_cmd)];
 }
 
-- (void)startProximitySensor
-{
-    if (_isProximityRegistered) {
-        return;
-    }
 
-    NSLog(@"RNInCallManager.startProximitySensor()");
-    dispatch_async(dispatch_get_main_queue(), ^{
-        self->_currentDevice.proximityMonitoringEnabled = YES;
-    });
 
-    // --- in case it didn't deallocate when ViewDidUnload
-    [self stopObserve:_proximityObserver
-                 name:UIDeviceProximityStateDidChangeNotification
-               object:nil];
-
-    _proximityObserver = [self startObserve:UIDeviceProximityStateDidChangeNotification
-                                     object:_currentDevice
-                                      queue: nil
-                                      block:^(NSNotification *notification) {
-        BOOL state = self->_currentDevice.proximityState;
-        if (state != self->_proximityIsNear) {
-            NSLog(@"RNInCallManager.UIDeviceProximityStateDidChangeNotification(): isNear: %@", state ? @"YES" : @"NO");
-            self->_proximityIsNear = state;
-            [self sendEventWithName:@"Proximity" body:@{@"isNear": state ? @YES : @NO}];
-        }
-    }];
-
-    _isProximityRegistered = YES;
-}
-
-- (void)stopProximitySensor
-{
-    if (!_isProximityRegistered) {
-        return;
-    }
-
-    NSLog(@"RNInCallManager.stopProximitySensor()");
-    dispatch_async(dispatch_get_main_queue(), ^{
-        self->_currentDevice.proximityMonitoringEnabled = NO;
-    });
-
-    // --- remove all no matter what object
-    [self stopObserve:_proximityObserver
-                 name:UIDeviceProximityStateDidChangeNotification
-               object:nil];
-
-    _isProximityRegistered = NO;
-}
 
 - (void)startAudioSessionNotification
 {
