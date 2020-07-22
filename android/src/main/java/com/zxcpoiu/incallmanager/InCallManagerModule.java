@@ -342,10 +342,8 @@ public class InCallManagerModule extends ReactContextBaseJavaModule implements L
 
     @ReactMethod
     public void start(final String _media, final boolean auto, final String ringbackUriType) {
-        if (!audioManagerActivated) {
-            audioManagerActivated = true;
-            startEvents();
-        }
+        audioManagerActivated = true;
+        startEvents();
         if (!ringbackUriType.isEmpty()) {
             startRingback(ringbackUriType);
         }
@@ -360,6 +358,7 @@ public class InCallManagerModule extends ReactContextBaseJavaModule implements L
         if (audioManagerActivated) {
             stopRingback();
             if (!busytoneUriType.isEmpty() && startBusytone(busytoneUriType)) {
+                stopProximitySensor();
                 // play busytone first, and call this func again when finish
                 Log.d(TAG, "play busytone before stop InCallManager");
                 return;
