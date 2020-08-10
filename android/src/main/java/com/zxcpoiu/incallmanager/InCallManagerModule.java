@@ -42,7 +42,6 @@ import android.view.KeyEvent;
 import android.view.Window;
 import android.view.WindowManager;
 
-
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.LifecycleEventListener;
 import com.facebook.react.bridge.NativeModule;
@@ -95,6 +94,7 @@ public class InCallManagerModule extends ReactContextBaseJavaModule implements L
     private BroadcastReceiver noisyAudioReceiver;
     private BroadcastReceiver mediaButtonReceiver;
     private OnFocusChangeListener mOnFocusChangeListener;
+
     // --- same as: RingtoneManager.getActualDefaultRingtoneUri(reactContext, RingtoneManager.TYPE_RINGTONE);
     private Uri defaultRingtoneUri = Settings.System.DEFAULT_RINGTONE_URI;
     private Uri defaultRingbackUri = Settings.System.DEFAULT_RINGTONE_URI;
@@ -343,7 +343,6 @@ public class InCallManagerModule extends ReactContextBaseJavaModule implements L
     @ReactMethod
     public void start(final String _media, final boolean auto, final String ringbackUriType) {
         audioManagerActivated = true;
-        requestAudioFocus();
         startEvents();
         if (!ringbackUriType.isEmpty()) {
             startRingback(ringbackUriType);
@@ -367,8 +366,6 @@ public class InCallManagerModule extends ReactContextBaseJavaModule implements L
                 Log.d(TAG, "stop() InCallManager");
                 stopBusytone();
                 stopEvents();
-                releaseAudioFocus();
-                audioManagerActivated = false;
             }
         }
     }
@@ -379,26 +376,6 @@ public class InCallManagerModule extends ReactContextBaseJavaModule implements L
 
     private void stopEvents() {
         stopProximitySensor();
-    }
-
-    private void requestAudioFocus() {
-        if (!isAudioFocused) {
-            int result = audioManager.requestAudioFocus(mOnFocusChangeListener, AudioManager.STREAM_VOICE_CALL, AudioManager.AUDIOFOCUS_GAIN);
-            if (result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
-                Log.d(TAG, "AudioFocus granted");
-                isAudioFocused = true;
-            } else if (result == AudioManager.AUDIOFOCUS_REQUEST_FAILED) {
-                Log.d(TAG, "AudioFocus failed");
-                isAudioFocused = false;
-            }
-        }
-    }
-
-    private void releaseAudioFocus() {
-        if (isAudioFocused) {
-            audioManager.abandonAudioFocus(null);
-            isAudioFocused = false;
-        }
     }
 
 
